@@ -7,6 +7,10 @@
 |cos_sim|0.5155|VGG19(conv2d-19) + argmin(1-cos(a,b))
 |vgg19feature_extract| - |过拟合
 
+### data
+参考数据目录`datasets/README.md`
+
+
 ### codes
 所有方法在`codes/models`目录, 目前有
 
