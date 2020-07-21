@@ -117,13 +117,17 @@ def main():
     model_save_path = "../model_weights/baseline.pth"
 
     # init dataset
-    with open("../data/all_train.txt", "r", encoding="utf8") as f:
+    with open("../../data/train_seed2020.txt", "r", encoding="utf8") as f:
         train_lines = f.read().splitlines()
-    
-    with open("../data/test.txt", "r", encoding="utf8") as f:
+        
+    with open("../../data/valid_seed2020.txt", "r", encoding="utf8") as f:
+        valid_lines = f.read().splitlines()
+
+    with open("../../data/test.txt", "r", encoding="utf8") as f:
         test_lines = f.read().splitlines()
 
     X_list, y_list = [], []
+    train_lines = train_lines.extend(valid_lines)
     for line in train_lines:
         x, y = line.split(',')
         X_list.append(x)

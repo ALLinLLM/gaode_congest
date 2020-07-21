@@ -2,8 +2,8 @@ import json
 import numpy as np
 import random
 
-json_path = "/workdir/datasets/gaode_congest/amap_traffic_annotations_train.json"
-imgs_root = "/workdir/datasets/gaode_congest/amap_traffic_train_0712"
+json_path = "../../datasets/amap_traffic_annotations_train.json"
+imgs_root = "../../datasets/amap_traffic_train_0712"
 valid_num = 200
 valid_pass_num = valid_num*0.7//1
 current_valid_pass_num = 0 
@@ -46,7 +46,7 @@ for data in data_arr:
         X_list.append(img_path)
         y_list.append(data["status"])
 
-with open("../data/test_seed2020.txt", "w", encoding="utf8") as test:
+with open("../data/valid_seed2020.txt", "w", encoding="utf8") as test:
     for x,y in zip(test_X_list, test_y_list):
         test.write(x)
         test.write(",")
