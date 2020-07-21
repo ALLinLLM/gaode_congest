@@ -9,24 +9,7 @@ import json
 from PIL import Image
 import numpy as np
 from tqdm import tqdm  
-
-class Vgg19Embedding(nn.Module):
-    def __init__(self):
-        nn.Module.__init__(self)
-        feature_layer= 35  # 35 last conv2d 38: after maxpool  42: 
-        model = models.vgg19(pretrained=True)
-        self.features = nn.Sequential(*list(model.features.children())[:feature_layer])
-        mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-        std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
-        self.register_buffer('mean', mean)
-        self.register_buffer('std', std)
-
-    def forward(self, x):
-        # Assume input range is [0, 1]
-        x = (x - self.mean) / self.std
-        x = self.features(x)
-        x = x.view(x.shape[0], -1)
-        return x
+from featureExtract import Vgg19Embedding
 
 
 class ConjestSingleImageDataset(data.Dataset):
@@ -127,7 +110,9 @@ def main():
         test_lines = f.read().splitlines()
 
     X_list, y_list = [], []
-    train_lines = train_lines.extend(valid_lines)
+    print("+++", len(train_lines), len(valid_lines))
+    train_lines.extend(valid_lines)
+    print("+++", len(train_lines))
     for line in train_lines:
         x, y = line.split(',')
         X_list.append(x)
@@ -196,8 +181,8 @@ def main():
                 _id = os.path.basename(os.path.dirname(y[ii]))
                 status = y_hat[ii]
                 result[_id] = status
-    json_path = "/workdir/datasets/gaode_congest/amap_traffic_annotations_test.json"
-    out_path = "/workdir/datasets/gaode_congest/amap_traffic_annotations_test_result.json"
+    json_path = "/workdir/datasets/gaode_congest/gaode_congest/datasets/amap_traffic_annotations_test.json"
+    out_path = "/workdir/datasets/gaode_congest/gaode_congest/datasets/amap_traffic_annotations_test_result.json"
     with open(json_path, "r", encoding="utf-8") as f, open(out_path, "w", encoding="utf-8") as w:
         json_dict = json.load(f)
         data_arr = json_dict["annotations"]  

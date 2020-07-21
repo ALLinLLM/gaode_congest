@@ -1,5 +1,5 @@
 import torchvision.transforms
-import torchvision.models as models
+
 from torchsummary import summary
 import torch
 import torch.nn as nn
@@ -9,25 +9,7 @@ import json
 from PIL import Image
 import numpy as np
 from tqdm import tqdm  
-
-class Vgg19Embedding(nn.Module):
-    def __init__(self):
-        nn.Module.__init__(self)
-        feature_layer= 35  # 35 last conv2d 38: after maxpool  42: 
-        model = models.vgg19(pretrained=True)
-        self.features = nn.Sequential(*list(model.features.children())[:feature_layer])
-        mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-        std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
-        self.register_buffer('mean', mean)
-        self.register_buffer('std', std)
-
-    def forward(self, x):
-        # Assume input range is [0, 1]
-        x = (x - self.mean) / self.std
-        x = self.features(x)
-        x = x.view(x.shape[0], -1)
-        return x
-
+from featureExtract import Vgg19Embedding
 
 class ConjestSingleImageDataset(data.Dataset):
     '''
@@ -94,8 +76,8 @@ def main():
     with open("../../data/train_seed2020.txt", "r", encoding="utf8") as f:
         train_lines = f.read().splitlines()
     
-    with open("../../data/test_seed2020.txt", "r", encoding="utf8") as f:
-        test_lines = f.read().splitlines()
+    with open("../../data/valid_seed2020.txt", "r", encoding="utf8") as f:
+        valid_lines = f.read().splitlines()
 
     X_list, y_list = [], []
     for line in train_lines:
@@ -103,24 +85,24 @@ def main():
         X_list.append(x)
         y_list.append(int(y))
     
-    test_X_list, test_y_list = [], []
-    for line in test_lines:
+    valid_X_list, valid_y_list = [], []
+    for line in valid_lines:
         x, y = line.split(',')
-        test_X_list.append(x)
-        test_y_list.append(int(y))
+        valid_X_list.append(x)
+        valid_y_list.append(int(y))
 
     train_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize((224, 224)),
         torchvision.transforms.ToTensor()
     ])
-    print("train/test datasets length:", len(X_list), len(test_X_list))
+    print("train/valid datasets length:", len(X_list), len(valid_X_list))
     train_dataset = ConjestSingleImageDataset(X_list, y_list, train_transforms)
-    test_dataset = ConjestSingleImageDataset(test_X_list, test_y_list, train_transforms)
+    valid_dataset = ConjestSingleImageDataset(valid_X_list, valid_y_list, train_transforms)
     batch_size = 164
     num_workers = 0
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                                            num_workers=num_workers, drop_last=True, pin_memory=False)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=100, shuffle=False,
+    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=100, shuffle=False,
                                            num_workers=num_workers, drop_last=True, pin_memory=False)
     # baseline    
     model = Vgg19Embedding()
@@ -149,7 +131,7 @@ def main():
     
     is_first = 0
     with torch.no_grad():
-        for _, (X, y) in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
+        for _, (X, y) in tqdm(enumerate(valid_dataloader), total=len(valid_dataloader)):
             X = X.cuda()
             # 
             embed = model(X)
