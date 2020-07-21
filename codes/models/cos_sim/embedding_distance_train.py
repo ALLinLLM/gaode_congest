@@ -10,7 +10,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm  
 from featureExtract import Vgg19Embedding
-
+from sklearn.manifold import TSNE 
 class ConjestSingleImageDataset(data.Dataset):
     '''
     读取json, 只取key image
@@ -36,36 +36,6 @@ class ConjestSingleImageDataset(data.Dataset):
     def __len__(self):
         return len(self.X_list)
 
-
-def tSNE():
-    from sklearn.manifold import TSNE 
-    from pandas.core.frame import DataFrame
-    import pandas as pd  
-    import numpy as np  
-    l=[]
-    with open('1.csv','r') as fd:
-    
-        line= fd.readline()
-        while line:
-            if line =="":
-                continue
-    
-            line = line.strip()
-            word = line.split(",")
-            l.append(word)
-            line= fd.readline()
-    
-    data_l=DataFrame(l)
-    print ("data_l ok")
-    dataMat = np.array(data_l)  
-    
-    
-    pca_tsne = TSNE(n_components=2)  
-    newMat = pca_tsne.fit_transform(dataMat)  
-    
-    
-    data1 = DataFrame(newMat)
-    data1.to_csv('2.csv',index=False,header=False)
 
 
 def main():
@@ -117,13 +87,21 @@ def main():
             y.numpy()
             # 
             embed = model(X)
-            embed = embed.cpu().numpy()
+            # embed = embed.cpu().numpy()
             if is_first == 0:
-                a = np.hstack((y.unsqueeze(0).T.numpy(), embed))
+                XX = embed
+                yy = y.unsqueeze(0).T.numpy()
                 is_first = 1
             else:
-                a = np.vstack((a, np.hstack((y.unsqueeze(0).T.numpy(), embed))))
-                
+                XX = np.vstack((XX, embed))
+                yy = np.vstack((yy, y.unsqueeze(0).T.numpy()))
+            break
+    
+    tsne = TSNE(n_components=2)  
+    XX = XX.cpu().detach()
+    X2d = tsne.fit_transform(XX)  
+    a = np.hstack((yy, X2d))
+    print(a.shape)
     mean_embedings = {}
     for i in np.unique(a[:, 0]):
         tmp = a[np.where(a[:,0] == i)][:, 1:]
@@ -135,7 +113,8 @@ def main():
             X = X.cuda()
             # 
             embed = model(X)
-            
+            XX = np.vstack((XX, embed))
+            # t-SNE降维对新的数据怎么办
             a_dist = 1-torch.cosine_similarity(embed, mean_embedings[0.0], dim=1)
             b_dist = 1-torch.cosine_similarity(embed, mean_embedings[1.0], dim=1)
             c_dist = 1-torch.cosine_similarity(embed, mean_embedings[2.0], dim=1)
