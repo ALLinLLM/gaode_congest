@@ -1,0 +1,8 @@
+pillow
+
+numpy
+sklearn
+
+torch
+torchvision
+torchsummary==1.5.1

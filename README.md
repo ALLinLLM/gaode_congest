@@ -11,11 +11,13 @@
 参考数据目录`datasets/README.md`
 
 ### startup
-1. 按照`datasets/README.md`下载好数据和json到`datasets/`
-2. cd codes/data
-3. python get_Xy_train.py
-4. python get_Xy_test.py
-5. cd codes/models/cos_sim
+1. git clone git@github.com:vegetable09/gaode_congest.git
+2. `cd gaode_congest`
+2. 按照`datasets/README.md`下载好数据和json到`datasets/`
+2. `cd codes/data`
+3. `sh get_Xy.sh`
+4. 下载`https://download.pytorch.org/models/vgg19-dcbb9e9d.pth`到`~/.cache/torch/checkpoints/vgg19-dcbb9e9d.pth`
+5. `sh run_model_cos.sh`
 6. python embedding_distance_test.py
 7. 结果保存在`datasets/amap_traffic_annotations_test_result.json`
 
