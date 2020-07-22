@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "embedding_distance_train",
             "type": "python",
             "request": "launch",
-            "program": "embedding_distance_test.py",
+            "program": "embedding_distance_train.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/codes/models/cos_sim"
         }
