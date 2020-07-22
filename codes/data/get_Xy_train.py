@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 json_path = "../../datasets/amap_traffic_annotations_train.json"
-imgs_root = "/workdir/datasets/gaode_congest/gaode_congest/datasets/amap_traffic_train_0712"
+imgs_root = "/workdir/tianchi/gaode_congest-master/datasets/amap_traffic_train_0712"
 valid_num = 600
 valid_pass_num = valid_num*0.7//1
 current_valid_pass_num = 0 

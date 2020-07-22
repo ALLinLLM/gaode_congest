@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 json_path = "../../datasets/amap_traffic_annotations_test.json"
-imgs_root = "/workdir/datasets/gaode_congest/gaode_congest/datasets/amap_traffic_test_0712"
+imgs_root = "/workdir/tianchi/gaode_congest-master/datasets/amap_traffic_test_0712"
 
 with open(json_path, "r", encoding="utf-8") as f:
     json_dict = json.load(f)
