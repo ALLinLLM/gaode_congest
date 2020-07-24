@@ -1,6 +1,6 @@
 import torchvision.transforms
 
-from torchsummary import summary
+# from torchsummary import summary
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,7 +40,10 @@ class ConjestSingleImageDataset(data.Dataset):
 
 
 def main():
+    print("start result")
+    feature_layers = 37
     torch.manual_seed(2020)
+    use_tSNE = False
     expiremtent_name = "baseline"
     model_save_path = "../model_weights/baseline.pth"
 
@@ -70,34 +73,33 @@ def main():
     print("train/valid datasets length:", len(X_list), len(valid_X_list))
     train_dataset = ConjestSingleImageDataset(X_list, y_list, train_transforms)
     valid_dataset = ConjestSingleImageDataset(valid_X_list, valid_y_list, train_transforms)
-    batch_size = 16
-    num_workers = 0
+    batch_size = 64
+    num_workers = 8
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                                            num_workers=num_workers, drop_last=True, pin_memory=False)
     valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False,
                                            num_workers=num_workers, drop_last=True, pin_memory=False)
     # baseline    
-    model = Vgg19Embedding()
-    model.cuda()
+    model = Vgg19Embedding(feature_layers)
+    model = model.cuda()
     # summary(model, (3, 224, 224))
 
     # train
     is_first = 0
     with torch.no_grad():
         for ii, (X, y) in tqdm(enumerate(train_dataloader), total=len(train_dataloader)):
-            if ii > 10:
-                break
-            X = X.cuda()
-            y.numpy()
+            # if ii > 10:
+            #     break
+            X = X.cuda()  # require_grads == False
             # 
             embed = model(X)
             # embed = embed.cpu().numpy()
             if is_first == 0:
-                X_train = embed
+                X_train = embed.cpu()
                 y_train = y.unsqueeze(0).T  # batch_size, 1
                 is_first = 1
             else:
-                X_train = torch.cat((X_train, embed), dim=0)
+                X_train = torch.cat((X_train, embed.cpu()), dim=0)
                 y_train = torch.cat((y_train, y.unsqueeze(0).T), dim=0)
                 # X_train = np.vstack((X_train, embed))
                 # y_train = np.vstack((y_train, y.unsqueeze(0).T.numpy()))
@@ -107,18 +109,18 @@ def main():
     is_first = 0
     with torch.no_grad():
         for ii, (X, y) in tqdm(enumerate(valid_dataloader), total=len(valid_dataloader)):
-            if ii > 10:
-                break
+            # if ii > 10:
+            #     break
             X = X.cuda()
             # 
             embed = model(X)
 
             if is_first==0:
-                X_valid = embed
+                X_valid = embed.cpu()
                 y_valid_real = y.unsqueeze(0).T
                 is_first=1
             else:
-                X_valid = torch.cat((X_valid, embed), dim=0)
+                X_valid = torch.cat((X_valid, embed.cpu()), dim=0)
                 y_valid_real = torch.cat((y_valid_real, y.unsqueeze(0).T), dim=0)
 
 
@@ -132,11 +134,15 @@ def main():
     X_all = X_all.cpu().detach().numpy()
     y_all = y_all.cpu().detach().numpy()
 
-    # 降维
-    tsne = TSNE(n_components=2)  
-    X_all_2d = tsne.fit_transform(X_all)  
-    a = np.hstack((y_all, X_all_2d))
-    print(a.shape)
+    if use_tSNE:
+        # 降维
+        tsne = TSNE(n_components=2)  
+        X_all_2d = tsne.fit_transform(X_all)  
+        a = np.hstack((y_all, X_all_2d))
+    else:
+        a = np.hstack((y_all, X_all))
+
+    print("embeding shape:", a.shape)
     mean_embedings = {}
     for i in np.unique(a[:, 0]):
         tmp = a[np.where(a[:,0] == i)][:, 1:]
@@ -171,7 +177,8 @@ def main():
     # print("f1", f1_score(y, y_valid_predict, average='micro'))  # 0.3333333333333333
 
     from sklearn.metrics import classification_report
-    print(classification_report(y_valid_real, y_valid_predict))
+    with open("result.txt", "w") as f:
+        f.write(classification_report(y_valid_real, y_valid_predict))
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,5 @@
 .vscode
+result.txt
 datasets
 !README.md
 __pycache__
