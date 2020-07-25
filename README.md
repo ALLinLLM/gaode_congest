@@ -4,6 +4,7 @@
 
 |模型|分数|备注|
 |:--|:--|:--
+|lightgbm|0.64|根据视频帧的时间，人工设计一系列特征
 |cos_sim|0.5155|VGG19(conv2d-19) + argmin(1-cos(a,b))
 |vgg19feature_extract| - |过拟合
 
@@ -25,5 +26,6 @@
 ### codes
 所有方法在`codes/models`目录, 目前有
 
+- lightgbm: 根据视频帧的时间，人工设计一系列特征
 - cos_sim: 使用VGG19的卷积层获得每个分类的embedding中心, 对于test数据, 计算余弦距离, 取最近的
 - vgg19feature_extract: 使用完整的VGG19, 接上softmax层, 过拟合
