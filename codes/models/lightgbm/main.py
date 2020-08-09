@@ -167,37 +167,78 @@ def lgb(x_train, y_train, x_valid):
     lgb_train, lgb_test, sb, cv_scores = stacking(lightgbm, x_train, y_train, x_valid, "lgb", 3)
     return lgb_train, lgb_test, sb, cv_scores
 
-
-path="../../../datasets/"   #存放数据的地址
-result_path="./"   #存放数据的地址
-train_json=pd.read_json(path+"amap_traffic_annotations_train.json")
-test_json=pd.read_json(path+"amap_traffic_annotations_test.json")
-
-
-train_df=get_data(train_json[:],"amap_traffic_train_0712")
-test_df=get_data(test_json[:],"amap_traffic_test_0712")
-
-select_features=["gap_mean","gap_std",
-                 "hour_mean","minute_mean","dayofweek_mean","gap_time_today_mean","gap_time_today_std",
-                 #"im_diff_mean_mean","im_diff_mean_std","im_diff_std_mean","im_diff_std_std",
-                ]
-
-train_x=train_df[select_features].copy()
-train_y=train_df["label"]
-valid_x=test_df[select_features].copy()
+if __name__ == "__main__":
+    result_path="./"   #存放数据的地址
+    train_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_train.json")
+    test_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_test.json")
+    
 
 
-lgb_train, lgb_test, sb, m=lgb(train_x, train_y, valid_x)
-sub=test_df[["map_id"]].copy()
-sub["pred"]=np.argmax(lgb_test,axis=1)
+    train_df=get_data(train_json[:],"amap_traffic_train_0712")
+    test_df=get_data(test_json[:],"amap_traffic_test_0712")
+    
+    import pandas as pd
+    df_cos = pd.read_pickle("/workdir/congest/result/cos_sim.pkl")
+    df_cos["dif_cos"] = df_cos['cos_max'] - df_cos['cos_min']
+    df_detect = pd.read_pickle("/workdir/congest/result/detect.pkl")
 
-result_dic=dict(zip(sub["map_id"],sub["pred"]))
-#保存
-import json
-with open(path+"amap_traffic_annotations_test.json","r") as f:
-    content=f.read()
-content=json.loads(content)
-for i in content["annotations"]:
-    i['status']=result_dic[i["id"]]
-with open(result_path+"sub_%s.json"%m,"w") as f:
-    f.write(json.dumps(content))
+    select_features=["gap_mean",
+                    "gap_std",
+                    "hour_mean",
+                    "minute_mean",
+                    "dayofweek_mean",
+                    "gap_time_today_mean",
+                    "gap_time_today_std",
+                    # sim
+                    "max_cos_sim",
+                    "min_cos_sim",
+                    "dif_cos_sim",
+                    "key_cos_sim",
+                    "var_cos_sim",
+                    "std_cos_sim",
+                    # detect
+                    "max_person_num",
+                    "min_person_num",
+                    "dif_person_num",
+                    "key_person_num",
+                    "var_person_num",
+                    "std_person_num",
+                    "max_nonvechicle_num",
+                    "min_nonvechicle_num",
+                    "dif_nonvechicle_num",
+                    "key_nonvechicle_num",
+                    "var_nonvechicle_num",
+                    "std_nonvechicle_num",
+                    "max_vechicle_num",
+                    "min_vechicle_num",
+                    "dif_vechicle_num",
+                    "key_vechicle_num",
+                    "var_vechicle_num",
+                    "std_vechicle_num",
+                    "max_max_area",
+                    "min_max_area",
+                    "dif_max_area",
+                    "key_max_area",
+                    "var_max_area",
+                    "std_max_area",
+                    ]
+    train_x=train_df[select_features].copy()
+    train_y=train_df["label"]
+    valid_x=test_df[select_features].copy()
+
+    
+    ##### lgb train #####
+    lgb_train, lgb_test, sb, m=lgb(train_x, train_y, valid_x)
+    sub=test_df[["map_id"]].copy()
+    sub["pred"]=np.argmax(lgb_test,axis=1)
+
+    result_dic=dict(zip(sub["map_id"],sub["pred"]))
+    #保存
+    import json
+    with open("/workdir/congest/datasets/amap_traffic_annotations_test.json","r") as f:
+        content=f.read()
+    content=json.loads(content)
+    for i in content["annotations"]:
+        i['status']=result_dic[i["id"]]
+    with open(result_path+"sub_%s.json"%m,"w") as f:
+        f.write(json.dumps(content))
