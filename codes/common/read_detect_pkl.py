@@ -2,15 +2,24 @@ import json
 import numpy as np
 import pandas as pd
 
+
+def cal_dif(x):
+    return x.max() - x.min()
+
 def postprocess_detect():
     df1 = pd.read_pickle("/workdir/congest/result/detection_1.pkl")
     df2 = pd.read_pickle("/workdir/congest/result/detection_2.pkl")
     df1.reset_index(drop=True, inplace=True)
     df2.reset_index(drop=True, inplace=True)
     df_data = pd.concat([df1, df2], axis=0)
-    df_data[['id', 'person_num', "nonvehicle_num", "vehicle_num", "max_area"]].groupby(['id']).agg(np.mean, np.std, np.max, np.min)
+    key_data = df_data[df_data["is_keyframe"]==1][['id', 'train_valid', 'person_num', "nonvehicle_num", "vehicle_num", "max_area"]]
+    key_data.columns = ['id', 'train_valid', 'person_num_key', "nonvehicle_num_key", "vehicle_num_key", "max_area_key"]
 
-    print(df.head())
+    a = df_data[['id', 'person_num', "nonvehicle_num", "vehicle_num", "max_area"]].groupby(['id']).agg(['mean', 'std', 'max', 'min', cal_dif])
+    b = a.copy(deep=True)
+    b.columns = ["_".join(x) for x in b.columns.ravel()]
+    c = key_data.join(b, on='id')
+    return c
 
 def postprocess_cos_sim():
     json_path="/workdir/congest/result/cos_anno.json"
