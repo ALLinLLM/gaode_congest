@@ -90,6 +90,7 @@ def get_data(df,img_path):
 def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     predictors = list(train_x.columns)
     train_x = train_x.values
+    train_y = train_y.to_numpy()
     test_x = test_x.values
     folds = 5
     seed = 2019
@@ -230,19 +231,17 @@ if __name__ == "__main__":
     train_y=train_df[train_df["train_valid"]==0]["label"]
 
     valid_x=train_df[train_df["train_valid"]==1][select_features].copy()
-    valid_y_real=train_df[train_df["train_valid"]==1]["label"]
+    valid_y_real=train_df[train_df["train_valid"]==1][["map_id","label"]]
 
     ##### lgb train #####
-    lgb_train, valid_y_pred, sb, m=lgb(train_x, train_y, valid_x)
-    sub=test_df[["map_id"]].copy()
-    sub["pred"]=np.argmax(valid_y_pred,axis=1)
+    lgb_train, np_valid_y_pred, sb, m=lgb(train_x, train_y, valid_x)
+    valid_y_pred=train_df[train_df["train_valid"]==1][["map_id"]].copy()
+    valid_y_pred["pred"]=np.argmax(np_valid_y_pred,axis=1)
 
-    result_dic=dict(zip(sub["map_id"],sub["pred"]))
-    result = pd.Dataframe(result_dic)
-    
     # 本地计算
-    train_df = pd.merge(valid_y_real, result, on=['map_id'])
-    print(train_df)
+    valid_y_pred = pd.merge(valid_y_pred, valid_y_real, on=['map_id'])
+    from sklearn.metrics import classification_report
+    print(classification_report(valid_y_pred['pred'], valid_y_pred['label']))
 
     #保存
     # import json
