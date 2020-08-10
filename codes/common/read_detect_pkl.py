@@ -21,6 +21,21 @@ def postprocess_detect():
     c = key_data.join(b, on='id')
     return c
 
+def postprocess_detect_test():
+    # df1 = pd.read_pickle("/workdir/congest/result/detection_test_1.pkl")
+    df_data = pd.read_pickle("/workdir/congest/result/detection_test_2.pkl")
+    # df1.reset_index(drop=True, inplace=True)
+    # df2.reset_index(drop=True, inplace=True)
+    # df_data = pd.concat([df1, df2], axis=0)
+    key_data = df_data[df_data["is_keyframe"]==1][['id', 'train_valid', 'person_num', "nonvehicle_num", "vehicle_num", "max_area"]]
+    key_data.columns = ['id', 'train_valid', 'person_num_key', "nonvehicle_num_key", "vehicle_num_key", "max_area_key"]
+
+    a = df_data[['id', 'person_num', "nonvehicle_num", "vehicle_num", "max_area"]].groupby(['id']).agg(['mean', 'std', 'max', 'min', cal_dif])
+    b = a.copy(deep=True)
+    b.columns = ["_".join(x) for x in b.columns.ravel()]
+    c = key_data.join(b, on='id')
+    return c
+
 def postprocess_cos_sim():
     json_path="/workdir/congest/result/cos_anno.json"
     with open(json_path, "r", encoding="utf-8") as f:

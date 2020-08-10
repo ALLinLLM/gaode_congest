@@ -1,6 +1,6 @@
 import sys
 sys.path.append("/workdir/congest/codes") # 这句是为了导入_config
-from common.read_detect_pkl import postprocess_detect 
+from common.read_detect_pkl import postprocess_detect, postprocess_detect_test
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -155,6 +155,10 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 
                 f1_scores.append(f1)
                 cv_rounds.append(model.best_iteration)
+                # plt.figure(figsize=(12,6))
+                # model.plot_importance(model, max_num_features=30)
+                # plt.title("Featurertances")
+                # plt.show()
                 test_pre_all[i, :] = np.argmax(pred, axis=1)
 
         print("%s now score is:" % clf_name, cv_scores)
@@ -174,18 +178,16 @@ def lgb(x_train, y_train, x_valid):
 if __name__ == "__main__":
     result_path="./"   #存放数据的地址
     train_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_train.json")
-    test_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_test.json")
     
 
 
     train_df=get_data(train_json[:],"amap_traffic_train_0712")
-    test_df=get_data(test_json[:],"amap_traffic_test_0712")
     
     import pandas as pd
-    df_detect = postprocess_detect()
-    df_cos = pd.read_pickle("/workdir/congest/result/cos_sim.pkl")
-    df_cos['cos_dif'] = df_cos['cos_max'] - df_cos['cos_min']
-    temp =  pd.merge(df_detect,df_cos, on=['id'])
+    temp = postprocess_detect()
+    # df_cos = pd.read_pickle("/workdir/congest/result/cos_sim.pkl")
+    # df_cos['cos_dif'] = df_cos['cos_max'] - df_cos['cos_min']
+    # temp =  pd.merge(df_detect,df_cos, on=['id'])
     temp.rename(columns={'id': 'map_id'}, inplace=True)
     train_df = pd.merge(train_df,temp, on=['map_id'])
     select_features=["gap_mean",
@@ -196,11 +198,11 @@ if __name__ == "__main__":
                     "gap_time_today_mean",
                     "gap_time_today_std",
                     # sim
-                    "cos_max",
-                    "cos_min",
-                    "cos_dif",
-                    "cos_mean",
-                    "cos_std",
+                    # "cos_max",
+                    # "cos_min",
+                    # "cos_dif",
+                    # "cos_mean",
+                    # "cos_std",
                     # detect
                     "person_num_max",
                     "person_num_min",
@@ -227,28 +229,46 @@ if __name__ == "__main__":
                     "max_area_mean",
                     "max_area_std"
                     ]
-    train_x=train_df[train_df["train_valid"]==0][select_features].copy()
-    train_y=train_df[train_df["train_valid"]==0]["label"]
+    mode = "sub"
+    if mode == "sub":
+        train_x=train_df[select_features].copy()
+        
+        train_y=train_df["label"]
+        test_x = postprocess_detect_test()
+        test_x.rename(columns={'id': 'map_id'}, inplace=True)
+        test_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_test.json")
+        test_df=get_data(test_json[:],"amap_traffic_test_0712")
+        test_df = pd.merge(test_df,test_x, on=['map_id'])
+        test_x = test_df[select_features].copy()
 
-    valid_x=train_df[train_df["train_valid"]==1][select_features].copy()
-    valid_y_real=train_df[train_df["train_valid"]==1][["map_id","label"]]
+        ##### lgb train #####
+        lgb_train, lgb_test, sb, m=lgb(train_x, train_y, test_x)
+        sub=test_df[["map_id"]].copy()
+        sub["pred"]=np.argmax(lgb_test,axis=1)
 
-    ##### lgb train #####
-    lgb_train, np_valid_y_pred, sb, m=lgb(train_x, train_y, valid_x)
-    valid_y_pred=train_df[train_df["train_valid"]==1][["map_id"]].copy()
-    valid_y_pred["pred"]=np.argmax(np_valid_y_pred,axis=1)
+        result_dic=dict(zip(sub["map_id"],sub["pred"]))
+        #保存
+        import json
+        with open("/workdir/congest/datasets/amap_traffic_annotations_test.json","r") as f:
+            content=f.read()
+        content=json.loads(content)
+        for i in content["annotations"]:
+            i['status']=result_dic[i["id"]]
+        with open(result_path+"sub_%s.json"%m,"w") as f:
+            f.write(json.dumps(content))
+    else:
+        train_x=train_df[train_df["train_valid"]==0][select_features].copy()
+        train_y=train_df[train_df["train_valid"]==0]["label"]
 
-    # 本地计算
-    valid_y_pred = pd.merge(valid_y_pred, valid_y_real, on=['map_id'])
-    from sklearn.metrics import classification_report
-    print(classification_report(valid_y_pred['pred'], valid_y_pred['label']))
+        valid_x=train_df[train_df["train_valid"]==1][select_features].copy()
+        valid_y_real=train_df[train_df["train_valid"]==1][["map_id","label"]]
 
-    #保存
-    # import json
-    # with open("/workdir/congest/datasets/amap_traffic_annotations_test.json","r") as f:
-    #     content=f.read()
-    # content=json.loads(content)
-    # for i in content["annotations"]:
-    #     i['status']=result_dic[i["id"]]
-    # with open(result_path+"sub_%s.json"%m,"w") as f:
-    #     f.write(json.dumps(content))
+        ##### lgb train #####
+        lgb_train, np_valid_y_pred, sb, m=lgb(train_x, train_y, valid_x)
+        valid_y_pred=train_df[train_df["train_valid"]==1][["map_id"]].copy()
+        valid_y_pred["pred"]=np.argmax(np_valid_y_pred,axis=1)
+
+        # 本地计算
+        valid_y_pred = pd.merge(valid_y_pred, valid_y_real, on=['map_id'])
+        from sklearn.metrics import classification_report
+        print(classification_report(valid_y_pred['pred'], valid_y_pred['label']))
