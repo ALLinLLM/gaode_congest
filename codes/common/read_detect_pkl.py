@@ -36,25 +36,36 @@ def postprocess_detect_test():
     c = key_data.join(b, on='id')
     return c
 
-def postprocess_cos_sim():
-    json_path="/workdir/congest/result/cos_anno.json"
+def postprocess_cos_sim(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
         json_dict = json.load(f)
-        df_dict = {"id":[], "cos_mean":[], "cos_std":[], "cos_max":[], "cos_min":[]}
+        df_dict = {"id":[], "cos_mean":[], "cos_std":[], "cos_max":[], "cos_min":[], "cos_v_mean":[], "cos_v_std":[], "cos_v_max":[], "cos_v_min":[]}
         for k, v in json_dict.items():
             df_dict["id"].append(k)
             cos = []
+            cos_v = []
             for i, j in v.items():
                 if i == "status": continue
+                if j["interval"]==0: continue
                 cos.append(j["cos_sim"])
+                cos_v.append(j["cos_sim"]/j["interval"])
             cos = np.array(cos)
+            cos_v = np.array(cos_v)
             df_dict["cos_mean"].append(cos.mean())
             df_dict["cos_std"].append(cos.std())
             df_dict["cos_max"].append(cos.max())
             df_dict["cos_min"].append(cos.min())
+            df_dict["cos_v_mean"].append(cos_v.mean())
+            df_dict["cos_v_std"].append(cos_v.std())
+            df_dict["cos_v_max"].append(cos_v.max())
+            df_dict["cos_v_min"].append(cos_v.min())
         from pandas.core.frame import DataFrame
         df_dict = DataFrame(df_dict)
-        df_dict.to_pickle("cos_sim.pkl")
+        import os 
+        output = os.path.basename(json_path)[:-5]+".pkl"
+        df_dict.to_pickle(output)
 
 if __name__ == "__main__":
-    postprocess_detect()
+    # json_path="/workdir/congest/result/cos_anno.json"
+    json_path="/workdir/congest/result/cos_anno_test.json"
+    postprocess_cos_sim(json_path)

@@ -92,8 +92,8 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     train_x = train_x.values
     train_y = train_y.to_numpy()
     test_x = test_x.values
-    folds = 5
-    seed = 2019
+    folds = 12
+    seed = 2020
     kf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
 
     train = np.zeros((train_x.shape[0], class_num))
@@ -175,21 +175,22 @@ def lgb(x_train, y_train, x_valid):
     lgb_train, valid_y_pred, sb, cv_scores = stacking(lightgbm, x_train, y_train, x_valid, "lgb", 3)
     return lgb_train, valid_y_pred, sb, cv_scores
 
+
+def get_df_from_json(train_json):
+    train_df=get_data(train_json[:],"amap_traffic_train_0712")
+    import pandas as pd
+    df_detect = postprocess_detect()
+    df_cos = pd.read_pickle("/workdir/congest/result/cos_anno.pkl")
+    df_cos['cos_dif'] = df_cos['cos_max'] - df_cos['cos_min']
+    df_cos['cos_v_dif'] = df_cos['cos_v_max'] - df_cos['cos_v_min']
+    df_cos.rename(columns={'id': 'map_id'}, inplace=True)
+    df_detect.rename(columns={'id': 'map_id'}, inplace=True)
+    train_df = pd.merge(train_df, df_detect, on=['map_id'])
+    train_df = pd.merge(train_df, df_cos, on=['map_id'])
+    return train_df
+
 if __name__ == "__main__":
     result_path="./"   #存放数据的地址
-    train_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_train.json")
-    
-
-
-    train_df=get_data(train_json[:],"amap_traffic_train_0712")
-    
-    import pandas as pd
-    temp = postprocess_detect()
-    # df_cos = pd.read_pickle("/workdir/congest/result/cos_sim.pkl")
-    # df_cos['cos_dif'] = df_cos['cos_max'] - df_cos['cos_min']
-    # temp =  pd.merge(df_detect,df_cos, on=['id'])
-    temp.rename(columns={'id': 'map_id'}, inplace=True)
-    train_df = pd.merge(train_df,temp, on=['map_id'])
     select_features=["gap_mean",
                     "gap_std",
                     "hour_mean",
@@ -198,11 +199,16 @@ if __name__ == "__main__":
                     "gap_time_today_mean",
                     "gap_time_today_std",
                     # sim
-                    # "cos_max",
-                    # "cos_min",
-                    # "cos_dif",
-                    # "cos_mean",
-                    # "cos_std",
+                    "cos_max",
+                    "cos_min",
+                    "cos_dif",
+                    "cos_mean",
+                    "cos_std",
+                    "cos_v_max",
+                    "cos_v_min",
+                    "cos_v_dif",
+                    "cos_v_mean",
+                    "cos_v_std",
                     # detect
                     "person_num_max",
                     "person_num_min",
@@ -229,16 +235,20 @@ if __name__ == "__main__":
                     "max_area_mean",
                     "max_area_std"
                     ]
-    mode = "sub"
+    #
+    #
+    mode = "sub1"
     if mode == "sub":
+        train_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_train.json")
+        train_df = get_df_from_json(train_json)
+        #
         train_x=train_df[select_features].copy()
-        
         train_y=train_df["label"]
+        ##
         test_x = postprocess_detect_test()
         test_x.rename(columns={'id': 'map_id'}, inplace=True)
         test_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_test.json")
-        test_df=get_data(test_json[:],"amap_traffic_test_0712")
-        test_df = pd.merge(test_df,test_x, on=['map_id'])
+        test_df = get_df_from_json(test_json)
         test_x = test_df[select_features].copy()
 
         ##### lgb train #####
@@ -257,6 +267,9 @@ if __name__ == "__main__":
         with open(result_path+"sub_%s.json"%m,"w") as f:
             f.write(json.dumps(content))
     else:
+        train_json = pd.read_json("/workdir/congest/datasets/amap_traffic_annotations_train.json")
+        train_df = get_df_from_json(train_json)
+        #
         train_x=train_df[train_df["train_valid"]==0][select_features].copy()
         train_y=train_df[train_df["train_valid"]==0]["label"]
 
@@ -271,4 +284,8 @@ if __name__ == "__main__":
         # 本地计算
         valid_y_pred = pd.merge(valid_y_pred, valid_y_real, on=['map_id'])
         from sklearn.metrics import classification_report
-        print(classification_report(valid_y_pred['pred'], valid_y_pred['label']))
+        from sklearn.metrics import confusion_matrix
+        print(confusion_matrix(valid_y_pred['label'], valid_y_pred['pred']))
+        # plt.matshow(cfm, cmap=plt.cm.gray)
+        # plt.show()
+        print(classification_report(valid_y_pred['label'], valid_y_pred['pred']))
