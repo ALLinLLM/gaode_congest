@@ -15,10 +15,24 @@ from torch.utils.data import Dataset, DataLoader
 from efficientdet.utils import BBoxTransform, ClipBoxes
 from utils.utils import preprocess, invert_affine, postprocess, STANDARD_COLORS, standard_to_bgr, get_index_label, plot_one_box
 from tqdm import tqdm
+from PIL import Image
 
 import sys
 sys.path.append("/workdir/congest/codes") # 这句是为了导入_config
 from common.split_data import split_train_val 
+
+obj_list = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+                'fire hydrant', '', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep',
+                'cow', 'elephant', 'bear', 'zebra', 'giraffe', '', 'backpack', 'umbrella', '', '', 'handbag', 'tie',
+                'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
+                'skateboard', 'surfboard', 'tennis racket', 'bottle', '', 'wine glass', 'cup', 'fork', 'knife', 'spoon',
+                'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut',
+                'cake', 'chair', 'couch', 'potted plant', 'bed', '', 'dining table', '', '', 'toilet', '', 'tv',
+                'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
+                'refrigerator', '', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
+                'toothbrush']
+count_cars = 0
+status = 2
 
 def view_json(json_object, data_root, train_valid):
     """
@@ -77,7 +91,34 @@ def count_objects(preds, obj_list, res, imshow=True, imwrite=False):
         res["vehicle_num"].append(vehicle_num)
         res["max_area"].append(max_area)
     # return res
+import random
 
+def plot_one_box(img, coord, label=None, score=None, line_thickness=None):
+    global status, count_cars
+    x1, y1, x2, y2 = coord
+    if label:
+        if random.random()<0.8:
+            return
+        cv2.imwrite('cars/%d/%d.jpg'%(status, count_cars), img[y1:y2, x1:x2, :])
+        count_cars += 1
+        if count_cars==200:
+            exit(0)
+
+
+def display(preds, imgs, imshow=True, imwrite=False):
+    for i in range(len(imgs)):
+        if len(preds[i]['rois']) == 0:
+            continue
+
+        for j in range(len(preds[i]['rois'])):
+            x1, y1, x2, y2 = preds[i]['rois'][j].astype(np.int)
+            obj = obj_list[preds[i]['class_ids'][j]]
+            if obj in ['car', 'bus', 'truck']:
+                score = float(preds[i]['scores'][j])
+                if x2-x1<50 or y2-y1<50 or x2-x1>900 or (y2-y1)/(x2-x1)>2.6  or (x2-x1)/(y2-y1)>2.6: 
+                    continue
+                plot_one_box(imgs[i], [x1, y1, x2, y2], label=obj,score=score)
+            
 
 def detect(img_path_list):
     """
@@ -91,22 +132,12 @@ def detect(img_path_list):
      # replace this part with your project's anchor config
     anchor_ratios = [(1.0, 1.0), (1.4, 0.7), (0.7, 1.4)]
     anchor_scales = [2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)]
-    threshold = 0.2
+    threshold = 0.3
     iou_threshold = 0.2
     use_cuda = True
     use_float16 = False
     cudnn.fastest = True
     cudnn.benchmark = True
-    obj_list = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-                'fire hydrant', '', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep',
-                'cow', 'elephant', 'bear', 'zebra', 'giraffe', '', 'backpack', 'umbrella', '', '', 'handbag', 'tie',
-                'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-                'skateboard', 'surfboard', 'tennis racket', 'bottle', '', 'wine glass', 'cup', 'fork', 'knife', 'spoon',
-                'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut',
-                'cake', 'chair', 'couch', 'potted plant', 'bed', '', 'dining table', '', '', 'toilet', '', 'tv',
-                'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
-                'refrigerator', '', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
-                'toothbrush']
 
     color_list = standard_to_bgr(STANDARD_COLORS)
     # tf bilinear interpolation is different from any other's, just make do
@@ -130,6 +161,7 @@ def detect(img_path_list):
     res["vehicle_num"] = []
     res["max_area"] = []
     count = 0
+
     for i in tqdm(range(0, len(img_path_list), batch_size)):
         ori_imgs, framed_imgs, framed_metas = preprocess(img_path_list[i:i+batch_size], max_size=input_size)
         if use_cuda:
@@ -137,6 +169,7 @@ def detect(img_path_list):
         else:
             x = torch.stack([torch.from_numpy(fi) for fi in framed_imgs], 0)
         x = x.to(torch.float32 if not use_float16 else torch.float16).permute(0, 3, 1, 2)
+        
         with torch.no_grad():
             _, regression, classification, anchors = model(x)
 
@@ -144,17 +177,19 @@ def detect(img_path_list):
                             anchors, regression, classification,
                             regressBoxes, clipBoxes,
                             threshold, iou_threshold)
-            # out = invert_affine(framed_metas, out)
+            out = invert_affine(framed_metas, out)
+            display(out, ori_imgs, imshow=False, imwrite=True)
             count += len(out)
-        count_objects(out, obj_list, res, imshow=False, imwrite=True)
+        # detect count
+        # count_objects(out, obj_list, res, imshow=False, imwrite=True)
     from pandas.core.frame import DataFrame
     res = DataFrame(res)
     return res
 
 
 if __name__ == "__main__":
-    json_path = "/workdir/congest/datasets/amap_traffic_annotations_test.json"
-    imgs_root = "/workdir/congest/datasets/amap_traffic_test_0712"
+    json_path = "/workdir/congest/datasets/amap_traffic_annotations_train.json"
+    imgs_root = "/workdir/congest/datasets/amap_traffic_train_0712"
     import json
     with open(json_path, "r", encoding="utf-8") as f:
         json_dict = json.load(f)
@@ -173,7 +208,7 @@ if __name__ == "__main__":
     df_data.gps_time = pd.to_datetime(df_data.gps_time.values, unit='s', utc=True).tz_convert("Asia/Shanghai")
     # df_train.gps_time = pd.to_datetime(df_train.gps_time.values, unit='s', utc=False)
     df_data["is_keyframe"] = (df_data["key_frame"]==df_data["frame_name"]).astype('int')
-    img_path_list = np.array(df_data['path'])#np.ndarray()
+    img_path_list = np.array(df_data[df_data['status']==status]['path'])#np.ndarray()
     img_path_list = img_path_list.tolist()#list
     detect_res = detect(img_path_list)
     detect_res.reset_index(drop=True, inplace=True)
