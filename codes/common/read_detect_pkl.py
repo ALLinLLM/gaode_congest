@@ -67,5 +67,6 @@ def postprocess_cos_sim(json_path):
 
 if __name__ == "__main__":
     # json_path="/workdir/congest/result/cos_anno.json"
-    json_path="/workdir/congest/result/cos_anno_test.json"
-    postprocess_cos_sim(json_path)
+    # json_path="/workdir/congest/result/cos_anno_test.json"
+    # postprocess_cos_sim(json_path)
+    postprocess_detect()
