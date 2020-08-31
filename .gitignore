@@ -3,3 +3,8 @@ result.txt
 datasets
 !README.md
 __pycache__
+
+final_submit/data/*.json
+amap_traffic_test_0712
+amap_traffic_train_0712
+amap_traffic_b_test_0828
