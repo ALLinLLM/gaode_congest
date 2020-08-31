@@ -162,9 +162,10 @@ def train_lgb(train_x, train_y, test_x, class_num=1):
         print("lgb now f1-score is:", f1_scores)
         print("lgb now round is:", cv_rounds)
     test[:] = test_pre.mean(axis=0)
-    print("lgb_score_list:" , cv_scores)
-    print("lgb_score_mean:" , np.mean(cv_scores), np.mean(f1_scores))
-    print("lgb_score_mean:" , np.std(cv_scores))
+    print("lgb_score_list:", cv_scores)
+    print("lgb_score_mean:", np.mean(cv_scores))
+    print("lgb_score_std:" , np.std(cv_scores))
+    print("f1_scores_mean:", np.mean(f1_scores))
     return train, test, test_pre_all, np.mean(f1_scores)
 
 
