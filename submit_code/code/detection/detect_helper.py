@@ -95,7 +95,7 @@ def detect(img_path_list):
     # model
     model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
                                 ratios=anchor_ratios, scales=anchor_scales)
-    model.load_state_dict(torch.load(f'weights/efficientdet-d{compound_coef}.pth'), strict=False)
+    model.load_state_dict(torch.load(f'../../user_data/model_data/efficientdet-d{compound_coef}.pth'), strict=False)
     model = model.cuda()
     model.requires_grad_(False)
     model.eval()
