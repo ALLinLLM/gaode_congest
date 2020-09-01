@@ -8,3 +8,7 @@ final_submit/data/*.json
 amap_traffic_test_0712
 amap_traffic_train_0712
 amap_traffic_b_test_0828
+
+submit_code.tar
+
+*.pth
