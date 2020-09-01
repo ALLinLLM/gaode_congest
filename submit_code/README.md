@@ -10,11 +10,18 @@
 - 序列中最大的非机动车加行人数量
 - 周几
 
+目标检测中采用了一些人工规则：  
+- 对于路边停车问题，采用了固定划分图像中间区域的方法，具体的，切除左边1/4, 右边1/4，上下各1/6  
+- 对于误检（挡风玻璃反光，车内摆件）采用了长宽比限制，长宽比大于3.5的认为是误检，不计入数量
+- 对于摩托车，通常能同时检出摩托车和行人，因此合并这两项。
 
 ### 运行环境
-OS: Ubuntu 16.04
-GPU: Nvidia T4 15GB显存
+OS: Ubuntu 16.04  
+GPU: Nvidia T4 15GB显存  
+CUDA: 10.0  
+CUDNN: 7.6.5  
 
 ### Quick start
-1. 修改code/main.py 193行，切换submit/local 
-2. cd code && sh run_test.sh
+1. 修改code/main.py 193行，默认是submit，也就是b榜数据。可以切换成local，就是训练数据本地划分验证集
+2. 目标检测结果已经缓存在user_data/tmp_data中。如果需要跑目标检测，需要取消code/run_test.sh中1~5行的注释
+3. cd code && sh run_test.sh
